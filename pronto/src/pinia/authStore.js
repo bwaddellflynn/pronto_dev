@@ -3,9 +3,14 @@ import axios from 'axios'; // Import Axios for making HTTP requests
 
 export const useAuthStore = defineStore('authStore', {
   state: () => ({
-    isAuthenticated: false
+    isAuthenticated: false,
+    token: null,
   }),
   actions: {
+    setToken(newToken) {
+      this.token = newToken;
+      this.isAuthenticated = !!newToken;
+    },
     async checkAuthStatus() {
       try {
         const response = await axios.get('https://localhost:7250/status');
@@ -21,7 +26,8 @@ export const useAuthStore = defineStore('authStore', {
     },
     async logout() {
       // Redirect to the backend logout URL
-      window.location.href = 'https://localhost:7250/logout';
+      // window.location.href = 'https://localhost:7250/logout';
+      window.location.href = 'https://localhost:7250/login';
     },
   }
 });

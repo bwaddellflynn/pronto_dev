@@ -1,92 +1,121 @@
 <template>
   <div class="flex justify-center items-center mt-9 pr-10">
     <div class="chart-container">
-      <canvas ref="barChart"></canvas>
+      <canvas ref="chartCanvas" ></canvas>
     </div>
   </div>
 </template>
 
+
 <script>
 import { Chart, registerables } from 'chart.js';
+import { ref, watch, onMounted, onBeforeUnmount, computed } from 'vue';
+import { usePeriodStore } from '../pinia/periodStore';
+import { useMyStore } from '../pinia/store';
+
 Chart.register(...registerables);
 
 export default {
-  name: 'HorizontalBarChart',
-  data() {
-    return {
-      chart: null,
-      chartData: {
-        // TODO - These will be populated with API data
-        totalBudgetedHours: 0, 
-        usedThisQuarter: 0,
-        usedThisPeriod: 0,
-        hoursRemaining: 0,
+  setup() {
+    const chartCanvas = ref(null);
+    let myChart = null;
+    const myStore = useMyStore();
+    const periodStore = usePeriodStore();
+
+    const periods = computed(() => periodStore.periods);
+
+    watch(
+      [() => myStore.selectedContract, () => myStore.UTCStartDate, () => myStore.UTCEndDate],
+      async ([newContractId, newStartDate, newEndDate]) => {
+        if (newContractId && newStartDate && newEndDate) {
+          await periodStore.fetchPeriods(newContractId, newStartDate, newEndDate);
+        }
       },
-    };
-  },
-  methods: {
-    addChartData() {
-      const data = {
-        labels: ['Total Budgeted', 'Used this Quarter', 'Used this Period', 'Hours Remaining'],
-        datasets: [
-          {
-            label: 'Hours',
-            data: [
-              this.chartData.totalBudgetedHours,
-              this.chartData.usedThisQuarter,
-              this.chartData.usedThisPeriod,
-              this.chartData.hoursRemaining,
-            ],
-            backgroundColor: 'rgba(75, 192, 192, 0.5)',
-            borderColor: 'rgba(75, 192, 192, 1)',
-            borderWidth: 1,
-          },
-        ],
-      };
+      { immediate: true }
+    );
 
-      this.renderChart(data);
-    },
-    renderChart(data) {
-      const context = this.$refs.barChart.getContext('2d');
-      
-      // Destroy the old chart if it exists
-      if (this.chart) {
-        this.chart.destroy(); 
-      }
-
-      this.chart = new Chart(context, {
-        type: 'bar',
-        data: data,
-        options: {
-          indexAxis: 'y',
-          scales: {
-            x: {
-              beginAtZero: true,
-              max: 150,
-            },
-            y: {
-              barThickness: 24,
-            },
-          },
-          plugins: {
-            legend: {
-              position: 'bottom',
-            },
-          },
-          maintainAspectRatio: false,
+    // Chart data and options
+    const chartData = {
+      labels: ['Total Budgeted', 'Used this Quarter', 'Used this Period', 'Hours Remaining'],
+      datasets: [
+        {
+          label: 'Hours',
+          data: [0, 0, 0, 0], // Initial data set to 0
+          backgroundColor: 'rgba(75, 192, 192, 0.5)',
+          borderColor: 'rgba(75, 192, 192, 1)',
+          borderWidth: 1,
         },
-      });
-    },
-  },
-  mounted() {
-    // TODO: Replace these test values with actual API call to fetch data
-    this.chartData.totalBudgetedHours = 117;
-    this.chartData.usedThisQuarter = 86.25;
-    this.chartData.usedThisPeriod = 10.75;
-    this.chartData.hoursRemaining = 30.75;
+      ],
+    };
 
-    // Adds retrieved data to chart
-    this.addChartData();
+    const chartOptions = {
+      type: 'bar',
+      responsive: true,
+      indexAxis: 'y',
+      scales: {
+        x: {
+          beginAtZero: true,
+          max: () => periodStore.maxHours,
+        },
+        y: {
+          barThickness: 24,
+        },
+      },
+      plugins: {
+        legend: {
+          position: 'bottom',
+        },
+      },
+      maintainAspectRatio: false,
+    };
+
+    // Update chart data function
+    const updateChartData = () => {
+      myChart.data.datasets[0].data = [
+        periodStore.totalBudgeted, 
+        periodStore.usedThisQuarter, 
+        periodStore.usedThisPeriod, 
+        periodStore.remainingHours
+      ];
+      myChart.update();
+    };
+
+    // Watch for changes in the periodStore
+    watch(
+      () => [
+        periodStore.totalBudgeted, 
+        periodStore.usedThisQuarter, 
+        periodStore.usedThisPeriod, 
+        periodStore.remainingHours,
+        periodStore.maxHours
+      ],
+      () => {
+        if (myChart) {
+          updateChartData();
+        }
+      },
+      { immediate: true }
+    );
+
+    // Initialize the chart
+    onMounted(() => {
+      myChart = new Chart(chartCanvas.value.getContext('2d'), {
+        type: chartOptions.type,
+        data: chartData,
+        options: chartOptions,
+      });
+    });
+
+    // Clean up on component unmount
+    onBeforeUnmount(() => {
+      if (myChart) {
+        myChart.destroy();
+      }
+    });
+    return {
+      chartCanvas,
+      periods,
+    };
   },
 };
 </script>

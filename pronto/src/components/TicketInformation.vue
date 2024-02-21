@@ -3,23 +3,23 @@
     <div class="p-4">
       <!-- Table Header -->
       <div class="grid grid-cols-7 gap-4 font-bold py-2">
-        <div class="col-span-1">Ticket Number</div>
-        <div class="col-span-2">Title</div>
+        <div class="col-span-1">ID# / Status</div>
+        <div class="col-span-2">Request Name</div>
         <div class="col-span-3">Description</div>
         <div class="col-span-1">Hours</div>
       </div>
       <!-- Table Body -->
       <div class="divide-y divide-gray-200">
         <div v-for="ticket in tickets" :key="ticket.id" class="grid grid-cols-7 gap-4 py-2">
-          <div class="col-span-1">{{ ticket.number }} <br>In Progress</div>
-          <div class="col-span-2">{{ ticket.title }}</div>
-          <div class="col-span-3">{{ ticket.description }}</div>
-          <div class="col-span-1">{{ ticket.hours }}</div>
+          <div class="col-span-1">{{ ticket.id }}<br>{{ ticket.standing }}</div>
+          <div class="col-span-2">{{ ticket.class }}</div>
+          <div class="col-span-3">{{ ticket.title }}</div>
+          <div class="col-span-1">{{ convertToHours(ticket.billable_Seconds) }}</div>
         </div>
       </div>
     </div>
     <div class="flex justify-center items-center mb-8 mt-4">
-      <div class=" bg-white shadow-lg rounded-lg w-4/5"> 
+      <div class="bg-white shadow-lg rounded-lg w-4/5"> 
         <textarea 
           v-model="note" 
           placeholder="Enter your notes here..." 
@@ -31,42 +31,30 @@
   </div>
 </template>
 
-
 <script>
 import { useMyStore } from '../pinia/store';
+import { useTicketStore } from '../pinia/ticketStore';
 import { computed } from 'vue';
-import { faker } from '@faker-js/faker';
 
 export default {
   name: 'TicketInformation',
   setup() {
     const myStore = useMyStore();
+    const ticketStore = useTicketStore();
+
+    const tickets = computed(() => ticketStore.tickets);
 
     const note = computed({
       get: () => myStore.reportNotes,
       set: (value) => myStore.setNote(value)
     });
-    return { note };
-  },
-  data() {
-    return { 
-      tickets: this.generateTickets(8) // Generate (X) IT ticket objects
-    };
+
+    return { tickets, note };
   },
   methods: {
-    // Placeholder data generated with Faker
-    generateTickets(count) {
-      const tickets = [];
-      for (let i = 0; i < count; i++) {
-        tickets.push({
-          id: i,
-          number: faker.string.alphanumeric({ length: 5, casing: 'upper' }),
-          description: faker.hacker.phrase(),
-          title: faker.git.commitMessage(),
-          hours: faker.number.int(30)
-        });
-      }
-      return tickets;
+    // Converts seconds to hours with two decimal points
+    convertToHours(seconds) {
+      return (parseInt(seconds) / 3600).toFixed(2);
     }
   }
 };

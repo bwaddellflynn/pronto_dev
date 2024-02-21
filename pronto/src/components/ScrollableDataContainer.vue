@@ -5,7 +5,7 @@
     </div>
     <!-- Button to open modal -->
     <div class="flex justify-center pt-2">
-      <button @click="isModalOpen = true" class="px-4 py-2 bg-gray-500 text-white rounded hover:bg-cyan-500">
+      <button @click="openModal" class="px-4 py-2 bg-gray-500 text-white rounded hover:bg-cyan-500">
         View Report Preview
       </button>
     </div>
@@ -53,6 +53,7 @@ import { jsPDF } from 'jspdf';
 import TicketInformation from './TicketInformation.vue';
 import ChartDisplay from './ChartDisplay.vue';
 import { useMyStore } from '../pinia/store';
+import { usePeriodStore } from '../pinia/periodStore';
 
 export default {
   name: 'ScrollableDataContainer',
@@ -95,40 +96,71 @@ export default {
       return this.myStore.selectedFrequencyLabel;
     },
     selectedCompanyLabel() {
-      return this.myStore.selectedCompanyName;
+      return this.myStore.selectedContractName;
     },
   },
   methods: {
     openModal() {
+      const periodStore = usePeriodStore();
       this.isModalOpen = true;
-      
+      periodStore.setMaxHours(periodStore.maxHours + 10);
+      console.log("Max Hours:", periodStore.maxHours);
     },
     closeModal() {
+      const periodStore = usePeriodStore();
       this.isModalOpen = false;
+      console.log("Max Hours:", periodStore.maxHours);
     },
     captureAndDownloadImage() {
       const node = this.$refs.contentToCapture;
-      const filename = this.generateFileName();
+      
+      domtoimage.toPng(node, { 
+        quality: 1,
+        style: {
+          transform: 'scale(2)',
+          transformOrigin: 'top left',
+        },
+        width: node.offsetWidth * 2,
+        height: node.offsetHeight * 2
+      })
+      .then((dataUrl) => {
+        this.generatePDF(dataUrl);
+      })
+      .catch((error) => {
+        console.error('Error generating image:', error);
+      });
+    },
+    generatePDF(dataUrl) {
+    // Create a jsPDF instance: Letter size paper, with inches as the unit
+    const pdf = new jsPDF({
+      orientation: 'portrait',
+      unit: 'in',
+      format: 'letter'
+    });
 
-      domtoimage.toPng(node)
-        .then((dataUrl) => {
-          // Create a new jsPDF instance
-          const pdf = new jsPDF();
+    // Calculate the width and height for the letter size
+    const imgWidth = 8.5; // Width in inches
+    const imgHeight = this.$refs.contentToCapture.offsetHeight * imgWidth / this.$refs.contentToCapture.offsetWidth;
+    const filename = this.generateFileName();
 
-          // Calculate the width and height to maintain aspect ratio and add margin to top
-          const imgWidth = 210; // A4 width in mm
-          const imgHeight = node.offsetHeight * imgWidth / node.offsetWidth;
-          const topMargin = 5;
+    // Since we've changed the unit to inches, adjust the scaling accordingly
+    let heightLeft = imgHeight;
+    let position = 0;
 
-          // Add the image to the PDF
-          pdf.addImage(dataUrl, 'PNG', 0, topMargin, imgWidth, imgHeight);
+    // Add the first image segment to PDF
+    pdf.addImage(dataUrl, 'PNG', 0, position, imgWidth, imgHeight);
+    heightLeft -= 11; // Height of a letter size page in inches
 
-          // Save the PDF
-          pdf.save(filename);
-        })
-        .catch((error) => {
-          console.error('Error generating PDF:', error);
-        });
+    // Add subsequent image segments each on a new page
+    while (heightLeft >= 0) {
+      position = heightLeft - imgHeight;
+      pdf.addPage();
+      pdf.addImage(dataUrl, 'PNG', 0, position, imgWidth, imgHeight);
+      heightLeft -= 11;
+    }
+
+      // Save the PDF
+      pdf.save(filename);
     },
     generateFileName() {
       const currentDate = new Date();

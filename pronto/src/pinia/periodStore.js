@@ -17,6 +17,7 @@ export const usePeriodStore = defineStore('periodStore', {
   actions: {
     async fetchPeriods(contractId, startDate, endDate) {
       const authStore = useAuthStore();
+      const ticketStore = useTicketStore();
       if (!authStore.token) {
         throw new Error('Authentication token is not available.');
       }
@@ -33,15 +34,16 @@ export const usePeriodStore = defineStore('periodStore', {
         console.log(this.periods);
 
         this.processPeriodData();
-
+        ticketStore.setTickets([])
         // Extract issue IDs and call fetchTickets in ticketStore
         const issueIds = this.extractIssueIds();
         if (issueIds.length > 0) {
           const issueIdsString = issueIds.join(',');
           console.log("Issue ID's: ",  issueIdsString)
-          const ticketStore = useTicketStore();
           await ticketStore.fetchTicketsByPeriod(issueIdsString, startDate, endDate);
         }
+
+        this.setPeriodHoursByTickets();
 
         this.error = null;
       } catch (err) {
@@ -58,10 +60,6 @@ export const usePeriodStore = defineStore('periodStore', {
 
       this.setTotalBudgeted(totalHours);
 
-
-
-      this.setUsedThisQuarter(0);
-
         // Sum the product of total and usage for each period
       const totalUsageSeconds = this.periods.reduce((acc, period) => {
         // Convert usage percentage to decimal and calculate
@@ -70,13 +68,26 @@ export const usePeriodStore = defineStore('periodStore', {
       }, 0);
       const totalUsageHours = totalUsageSeconds / 3600;
 
-      this.setUsedThisPeriod(totalUsageHours);
+      this.setUsedThisQuarter(totalUsageHours);
 
       const totalRemainingHours = (totalHours - totalUsageHours);
 
       this.setRemainingHours(totalRemainingHours);
 
       this.setMaxHours(this.totalBudgeted + 10);
+    },
+
+    setPeriodHoursByTickets() {
+      const ticketStore = useTicketStore();
+  
+      // Sum up the billable seconds from each ticket and convert to hours
+      const totalBillableSeconds = ticketStore.tickets.reduce((acc, ticket) => {
+        return acc + ticket.billable_Seconds;
+      }, 0);
+      
+      const totalBillableHours = totalBillableSeconds / 3600; // Convert seconds to hours
+  
+      this.usedThisPeriod = totalBillableHours;
     },
 
     extractIssueIds() {

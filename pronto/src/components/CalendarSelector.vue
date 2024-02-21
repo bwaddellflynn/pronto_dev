@@ -43,32 +43,38 @@ export default {
         let end;
 
         switch (myStore.selectedFrequency) {
-          case 1: {
+          case 'On-Demand': {
             start = new Date(selectedDate);
             end = new Date(newValue.end);
             updateStoreDateRange(start, end);
             break;
           }
-          case 2: {
+          case 'Bi-Weekly': {
             const adjustment = selectedDate.getDay() === 0 ? -6 : 1;
             start = new Date(selectedDate.setDate(selectedDate.getDate() - selectedDate.getDay() + adjustment));
             end = new Date(new Date(start).setDate(start.getDate() + 13));
             updateStoreDateRange(start, end);
             break;
           }
-          case 3: {
+          case 'Monthly': {
             start = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), 1);
             end = new Date(selectedDate.getFullYear(), selectedDate.getMonth() + 1, 0);
             updateStoreDateRange(start, end);
             break;
           }
-          case 4: {
+          case 'Quarterly': {
             start = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), 1);
             end = new Date(selectedDate.getFullYear(), selectedDate.getMonth() + 3, 0);
             updateStoreDateRange(start, end);
             break;
           }
-          case 5: {
+          case 'Yearly': {
+            start = new Date(selectedDate.getFullYear(), 0, 1);
+            end = new Date(selectedDate.getFullYear() + 1, 0, 0);
+            updateStoreDateRange(start, end);
+            break;
+          }
+          case 'Fortnightly': {
             start = new Date(selectedDate.getFullYear(), 0, 1);
             end = new Date(selectedDate.getFullYear() + 1, 0, 0);
             updateStoreDateRange(start, end);

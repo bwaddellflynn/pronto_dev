@@ -6,16 +6,21 @@ export const useMyStore = defineStore({
   id: 'myStore',
   state: () => ({
     contracts: [],
+    companies: [],
     issues: [],
+    affiliations: [],
     frequencies: [
-      { id: 1, value: 'on-demand', label: 'On-Demand' },
-      { id: 2, value: 'bi-weekly', label: 'Bi-weekly' },
-      { id: 3, value: 'monthly', label: 'Monthly' },
-      { id: 4, value: 'quarterly', label: 'Quarterly' },
-      { id: 5, value: 'yearly', label: 'Yearly' },
+      { id: 'On-Demand', value: 'On-Demand', label: 'On-Demand' },
+      { id: 'Bi-Weekly', value: 'Bi-Weekly', label: 'Bi-weekly' },
+      { id: 'Monthly', value: 'Monthly', label: 'Monthly' },
+      { id: 'Quarterly', value: 'Quarterly', label: 'Quarterly' },
+      { id: 'Yearly', value: 'Yearly', label: 'Yearly' },
+      { id: 'Fortnightly', value: 'Fortnightly', label: 'Fortnightly' },
     ],
     selectedContract: '',
+    selectedCompany: '',
     selectedFrequency: '',
+    selectedFrequencyID:'',
     startDate: null,
     endDate: null,
     UTCStartDate: null,
@@ -30,6 +35,10 @@ export const useMyStore = defineStore({
     // Selects a contract
     selectContract(contractId) {
       this.selectedContract = contractId;
+    },
+      // Selects a company
+    selectCompany(companyId) {
+      this.selectedCompany = companyId;
     },
     // Selects a frequency
     selectFrequency(frequencyId) {
@@ -61,17 +70,37 @@ export const useMyStore = defineStore({
       if (!authStore.token) {
         throw new Error('Authentication token is not available.');
       }
+    
+      try {
+        const response = await axios.get('https://localhost:7250/accelodsa/contracts', {
+          headers: {
+            Authorization: `Bearer ${authStore.token}`,
+          },
+        });
+        
+        this.contracts = response.data;
+        console.log(this.contracts);
+    
+      } catch (error) {
+        console.error('Error fetching contracts:', error);
+      }
+    },
+    
+    async fetchCompanies() {
+      const authStore = useAuthStore();
+      if (!authStore.token) {
+        throw new Error('Authentication token is not available.');
+      }
 
       try {
-        const response = await axios. get('http://localhost:5222/accelo/contracts', {
+        const response = await axios. get('https://localhost:7250/accelogeneral/companies', {
           headers: {
             Authorization: `Bearer ${authStore.token}`,
           },
         }); 
-        this.contracts = response.data;
+        this.companies = response.data;
       } catch (error) {
-        console.error('Error fetching contracts:', error);
-        // Handle error, e.g., show notification, redirect to login, etc.
+        console.error('Error fetching companies:', error);
       }
     },
     async fetchIssues(companyId, UTCStartDate, UTCEndDate) {
@@ -82,7 +111,7 @@ export const useMyStore = defineStore({
       }
       this.loading = true;
       try {
-        const response = await axios.get('http://localhost:5222/api/accelo/issues', {
+        const response = await axios.get('https://localhost:7250/accelo/issues', {
           params: { companyId, start_date: UTCStartDate, end_date: UTCEndDate },
           headers: { 'Authorization': `Bearer ${authStore.token}` },
         });
@@ -103,9 +132,13 @@ export const useMyStore = defineStore({
       return frequency ? frequency.label : '';
     },
     // Getter for the name of the selected company
-    selectedCompanyName() {
+    selectedContractName() {
       const contract = this.contracts.find(f => f.id === this.selectedContract);
       return contract ? contract.company.name : '';
+    },
+    selectedCompanyName() {
+      const company = this.companies.find(f => f.id === this.selectedCompany);
+      return company ? company.name : '';
     },
     // Getter for formatted start date
     formattedStartDate() {

@@ -17,8 +17,8 @@
       <!-- Main content -->
       <div class="flex flex-grow bg-transparent">
         <!-- Sidebar -->
-        <aside class="w-80 bg-gray-100 pt-6 shadow-md">
-          <div class="mb-9 mt-5">
+        <aside class="w-80 bg-gray-100 shadow-md">
+          <div class="bg-white pb-9 pt-6 m-1 shadow rounded-lg">
             <img src="../assets/perbyte_logo.png" alt="User avatar" class="mx-auto rounded-full w-24 h-24 mb-2">
             <div class="text-center mt-5">
               <!-- TODO: Replace with values for username + email retrieved dynamically-->
@@ -26,11 +26,22 @@
               <p><a href="#" class="mx-2 hover:text-gray-500">jane.doe@perbyte.com</a></p>
             </div>
           </div>
-
-          <button class="w-full pt-2 pb-2 bg-gray-200 hover:bg-gray-300">Generate Report</button>
-          <button class="w-full pt-2 pb-2 bg-gray-200 hover:bg-gray-300">View Last Report</button>
-          <button class="w-full pt-2 pb-2 bg-gray-200 hover:bg-gray-300">Send Report</button>
-          <button class="w-full pt-2 pb-2 bg-gray-200 hover:bg-gray-300">Preferences</button>
+          <div class="shadow m-1">
+            <button class="w-full pt-2 pb-2 font-semibold bg-gray-200 hover:text-white hover:bg-gray-400 rounded-t-lg" @click="openModal('generateReport')">Generate Report</button>
+            <ModalComponent :show="modals.generateReport" @update:show="updateModal('generateReport', $event)">
+              <p>The Generate Report feature is still under development.</p>
+            </ModalComponent>
+            <button class="w-full pt-2 pb-2 font-semibold bg-gray-200 hover:text-white hover:bg-gray-400 " @click="openModal('viewLastReport')">View Last Report</button>
+            <ModalComponent :show="modals.viewLastReport" @update:show="updateModal('viewLastReport', $event)">
+              <p>This View Last Report feature is still under development.</p>
+            </ModalComponent>
+            <button class="w-full pt-2 pb-2 font-semibold bg-gray-200 hover:text-white hover:bg-gray-400 " @click="sendReportByEmail">Send Report</button>
+            <button class="w-full pt-2 pb-2 font-semibold bg-gray-200 hover:text-white hover:bg-gray-400  rounded-b-lg" @click="openModal('preferences')">Preferences</button>
+            <ModalComponent :show="modals.preferences" @update:show="updateModal('preferences', $event)">
+              <p>The Preferences feature is still under development.</p>
+            </ModalComponent>
+          </div>
+          <ContactInformation :contact="selectedContactInfo"/>
         </aside>
 
         <!-- Data display area -->
@@ -56,7 +67,7 @@
           </ModalComponent>
           <a href="#" class="mx-2 hover:text-gray-500" @click="openModal('privacy')">Privacy Policy</a>
           <ModalComponent :show="modals.privacy" @update:show="updateModal('privacy', $event)">
-            This sytem was created by a junior developer <br>who lacks the knowledge and understanding to <br>perform complex and invasive data collection.<br>Your secrets are safe with us.<br>
+            <p>This sytem was created by a junior developer <br>who lacks the knowledge and understanding to <br>perform complex and invasive data collection.<br>Your secrets are safe with us.<br></p>
           </ModalComponent>
           <a href="#" class="mx-2 hover:text-gray-500" @click="openModal('feedback')">Feedback</a>
           <ModalComponent :show="modals.feedback" @update:show="updateModal('feedback', $event)">
@@ -70,6 +81,7 @@
 
 <script>
 import CompanySelector from './CompanySelector.vue'
+import ContactInformation from './ContactInformation.vue'
 import ScrollableDataContainer from './ScrollableDataContainer.vue';
 import ChartDisplay from './ChartDisplay.vue';
 import CalendarSelector from './CalendarSelector.vue';
@@ -78,7 +90,8 @@ import ConfirmationDialogue from './ConfirmationDialogue.vue';
 import TermsOfService from './TermsOfService.vue';
 import { computed } from 'vue';
 import { useAuthStore } from '../pinia/authStore';
-//import axios from 'axios';
+import { useMyStore } from '../pinia/store';
+import axios from 'axios';
 
 
 export default {
@@ -91,11 +104,19 @@ export default {
     ModalComponent,
     ConfirmationDialogue,
     TermsOfService,
-  },
+    ContactInformation
+},
   setup() {
     const authStore = useAuthStore();
-    const performLogin = () => {
-      authStore.login();
+    const performLogin = async () => {
+      //authStore.login();
+      try {
+        const response = await axios.get('https://localhost:7250/TestAuth/login');
+        authStore.setToken(response.data.token);
+        console.log('Is Authenticated: ', authStore.isAuthenticated);
+      } catch (error) {
+        console.error('Login failed:', error);
+      }
     };
 
     const performLogout = () => {
@@ -113,6 +134,9 @@ export default {
   data() {
     return {
       modals: {
+        generateReport: false,
+        viewLastReport: false,
+        preferences: false,
         tos: false,
         privacy: false,
         feedback: false,
@@ -120,6 +144,23 @@ export default {
       },
       showModal: true,
     };
+  },
+  computed: {
+    myStore() {
+      return useMyStore();
+    },
+    formattedStartDate() {
+      return this.myStore.formattedStartDate;
+    },
+    formattedEndDate() {
+      return this.myStore.formattedEndDate;
+    },
+    selectedFrequencyLabel() {
+      return this.myStore.selectedFrequencyLabel;
+    },
+    selectedCompanyLabel() {
+      return this.myStore.selectedContractName;
+    },
   },
   mounted() {
     const authStore = useAuthStore();
@@ -134,6 +175,15 @@ export default {
     },
     openLogoutDialog() {
       this.modals.logout = true;
+    },
+    sendReportByEmail() {
+    const myStore = useMyStore();
+    const email = 'Client Email';
+    const subject = encodeURIComponent('DSA Report Update for ' + myStore.formattedStartDate + " to " + myStore.formattedStartDate);
+    const body = encodeURIComponent('Attached you will find your regularly scheduled updates for your dedicated service agreement with PerByte.');
+
+    const mailtoLink = `mailto:${email}?subject=${subject}&body=${body}`;
+    window.location.href = mailtoLink; 
     },
   },
 }

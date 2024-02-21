@@ -53,6 +53,7 @@
 import { useMyStore } from '../pinia/store';
 import { useAuthStore } from '../pinia/authStore';
 import { onMounted, computed, watch } from 'vue';
+import axios from 'axios';
 
 export default {
   created() {
@@ -96,19 +97,6 @@ export default {
     const myStore = useMyStore();
     const isAuthenticated = computed(() => authStore.isAuthenticated);
 
-    const handleCompanyChange = () => {
-      if (myStore.selectedCompany) {
-        const selectedCompanyObj = myStore.contracts.find(contract => contract.id === myStore.selectedContract);
-        myStore.fetchIssuesForCompany(myStore.selectedCompany);
-        if (selectedCompanyObj) {
-          const matchingFrequency = myStore.frequencies.find(frequency => frequency.label === selectedCompanyObj.frequency);
-          if (matchingFrequency) {
-            myStore.selectFrequency(matchingFrequency.id);
-          }
-        }
-      }
-    };
-
     const fetchContracts = async () => {
       if (authStore.isAuthenticated) {
         await myStore.fetchContracts();
@@ -120,18 +108,58 @@ export default {
 
     // Reactively fetch contracts when the authentication state changes
     watch(() => authStore.isAuthenticated, fetchContracts);
+    watch(() => myStore.selectedContract, (newContractId) => {
+      const selectedContract = myStore.contracts.find(contract => contract.id === newContractId);
+      if (selectedContract) {
+        myStore.selectFrequency(selectedContract.frequency); // Update the frequency in the store
+      }
+    }, { immediate: true });
     return {
       isAuthenticated,
-      handleCompanyChange,
+
     };
   },
   methods: {
-    submit() {
-      const myStore = useMyStore();
-      if (!this.isSubmitDisabled) {
-        console.log('Selected Company ID:', myStore.selectedContract);
-        console.log('Selected Report Frequency:', myStore.selectedFrequency);
-        // Add any additional submit logic here
+    async submit() {
+      const authStore = useAuthStore(); // Access the authentication store
+      const myStore = useMyStore(); // Access the store with your selected data
+
+      // Ensure there's a selected contract and frequency, and the user is authenticated
+      if (!this.isSubmitDisabled && authStore.isAuthenticated && myStore.selectedContract && myStore.selectedFrequency) {
+        try {
+          // First, make a GET request to retrieve the current profile fields
+          const getFieldResponse = await axios.get(`https://perbyte.api.accelo.com/api/v0/contracts/${myStore.selectedContract}/profiles/values`, {
+            headers: {
+              'Authorization': `Bearer ${authStore.token}`
+            }
+          });
+
+          // Find the "Reporting Frequency" field in the response
+          const frequencyField = getFieldResponse.data.response.find(field => field.field_name === "Reporting Frequency");
+
+          if (!frequencyField) {
+            throw new Error("Reporting Frequency field not found.");
+          }
+
+          // Now, make the PUT request to update the frequency
+          const updateResponse = await axios.put(`https://perbyte.api.accelo.com/api/v0/contracts/${myStore.selectedContract}/profiles/values`, {
+            field_values: [
+              {
+                id: frequencyField.id, // The dynamic ID of the "Reporting Frequency" field
+                value: myStore.selectedFrequency // The new frequency value to be set
+              }
+            ]
+          }, {
+            headers: {
+              'Authorization': `Bearer ${authStore.token}`
+            }
+          });
+
+          console.log(updateResponse.data); // Handle the successful response
+        } catch (error) {
+          console.error("Error submitting frequency update:", error);
+          // Handle the error, such as displaying a message to the user
+        }
       }
     },
   },

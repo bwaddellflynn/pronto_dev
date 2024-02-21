@@ -42,14 +42,13 @@ export const useTicketStore = defineStore('ticketStore', {
 
       try {
         this.isLoading = true;
-        const response = await axios.get('https://localhost:7250/accelogeneral/issues', {
+        const response = await axios.get('https://pronto-middleware.azurewebsites.net/accelogeneral/issues', {
           params: { companyId, startDate, endDate },
           headers: {
             Authorization: `Bearer ${authStore.token}`
           }
         });
         this.tickets = response.data;
-        console.log(this.tickets); 
         this.error = null;
       } catch (err) {
         this.error = err.message;
@@ -57,7 +56,10 @@ export const useTicketStore = defineStore('ticketStore', {
       } finally {
         this.isLoading = false;
       }
-    }
+    },
+    setTickets(list) {
+      this.tickets = list;
+    },
   },
   getters: {
     filteredTickets: (state) => (status) => {
